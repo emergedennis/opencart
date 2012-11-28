@@ -32,7 +32,7 @@ class ControllerCommonFileManager extends Controller {
 		
 		$this->data['token'] = $this->session->data['token'];
 		
-		$this->data['directory'] = HTTP_CATALOG . 'image/data/';
+		$this->data['directory'] = HTTP_IMAGE . 'data/';
 				
 		$this->load->model('tool/image');
 
@@ -103,7 +103,12 @@ class ControllerCommonFileManager extends Controller {
 			'.jpg',
 			'.jpeg',
 			'.png',
-			'.gif'
+			'.gif',
+			'.pdf',
+			'.xls',
+			'.doc',
+			'.csv',
+			'.xlsx'
 		);
 		
 		$files = glob(rtrim($directory, '/') . '/*');
@@ -213,37 +218,39 @@ class ControllerCommonFileManager extends Controller {
 			if (is_file($path)) {
 				unlink($path);
 			} elseif (is_dir($path)) {
-				$files = array();
-				
-				$path = array($path . '*');
-				
-				while(count($path) != 0) {
-					$next = array_shift($path);
-			
-					foreach(glob($next) as $file) {
-						if (is_dir($file)) {
-							$path[] = $file . '/*';
-						}
-						
-						$files[] = $file;
-					}
-				}
-				
-				rsort($files);
-				
-				foreach ($files as $file) {
-					if (is_file($file)) {
-						unlink($file);
-					} elseif(is_dir($file)) {
-						rmdir($file);	
-					} 
-				}				
+				$this->recursiveDelete($path);
 			}
 			
 			$json['success'] = $this->language->get('text_delete');
 		}				
 		
 		$this->response->setOutput(json_encode($json));
+	}
+
+	protected function recursiveDelete($directory) {
+		if (is_dir($directory)) {
+			$handle = opendir($directory);
+		}
+		
+		if (!$handle) {
+			return false;
+		}
+		
+		while (false !== ($file = readdir($handle))) {
+			if ($file != '.' && $file != '..') {
+				if (!is_dir($directory . '/' . $file)) {
+					unlink($directory . '/' . $file);
+				} else {
+					$this->recursiveDelete($directory . '/' . $file);
+				}
+			}
+		}
+		
+		closedir($handle);
+		
+		rmdir($directory);
+		
+		return true;
 	}
 
 	public function move() {
@@ -433,7 +440,7 @@ class ControllerCommonFileManager extends Controller {
 					$json['error'] = $this->language->get('error_directory');
 				}
 				
-				if ($this->request->files['image']['size'] > 300000) {
+				if ($this->request->files['image']['size'] > 3000000) {
 					$json['error'] = $this->language->get('error_file_size');
 				}
 				
@@ -443,7 +450,12 @@ class ControllerCommonFileManager extends Controller {
 					'image/png',
 					'image/x-png',
 					'image/gif',
-					'application/x-shockwave-flash'
+					'application/x-shockwave-flash',
+					'application/pdf',
+					'application/msword',
+					'application/vnd.ms-excel',
+					'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+					'text/csv'
 				);
 						
 				if (!in_array($this->request->files['image']['type'], $allowed)) {
@@ -455,7 +467,12 @@ class ControllerCommonFileManager extends Controller {
 					'.jpeg',
 					'.gif',
 					'.png',
-					'.flv'
+					'.flv',
+					'.pdf',
+					'.xls',
+					'.csv',
+					'.doc',
+					'.xlsx'
 				);
 						
 				if (!in_array(strtolower(strrchr($filename, '.')), $allowed)) {
